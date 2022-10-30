@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://github.com/Ethancade/Work-Portfolio/about.html</loc>
+    <lastmod>2022-10-30T13:24:23.444Z</lastmod>
+  </url>
+  <url>
+    <loc>https://github.com/Ethancade/Work-Portfolio/index.html</loc>
+    <lastmod>2022-10-30T13:24:24.029Z</lastmod>
+  </url>
+  <url>
+    <loc>https://github.com/Ethancade/Work-Portfolio/posts/TextualAnalysis.html</loc>
+    <lastmod>2022-10-30T13:24:27.113Z</lastmod>
+  </url>
+  <url>
+    <loc>https://github.com/Ethancade/Work-Portfolio/templates/AboutTemplate.html</loc>
+    <lastmod>2022-10-30T13:24:28.461Z</lastmod>
+  </url>
+  <url>
+    <loc>https://github.com/Ethancade/Work-Portfolio/templates/PostTemplate.html</loc>
+    <lastmod>2022-10-30T13:24:32.210Z</lastmod>
+  </url>
+</urlset>
