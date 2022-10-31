@@ -1,0 +1,550 @@
+---
+title: "Textual Analysis"
+author: "Ethan Campbell"
+description: "Analyzing English premier league team's and how their langauge chagnes during the course of the season"
+date: "10/30/2022"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-copy: true
+    code-tools: true
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading Packages
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(polite)
+library(stringr)
+library(quanteda)
+library(quanteda.textplots)
+```
+
+# Data Sources
+
+There are 6 teams included in this study 2 from the top of the table 2 from the middle and 2 from the bottom. They are already in that order from top to bottom. Data needed to be web scraped from a page called match report. This page was located on each teams official website and this page included information about the match, statistics, and quotes from both the players and the managers.
+
+[Arsenal Data](https://www.arsenal.com/news?field_article_arsenal_team_value=men&revision_information=&page=1)
+
+[Manchester City Data](https://www.mancity.com/news/mens)
+
+[Newcastle United Data](https://www.nufc.co.uk/matches/first-team/#results)
+
+[Everton Data](https://www.evertonfc.com/results)
+
+[Leicester Data](https://www.lcfc.com/matches/reports)
+
+[West Ham United Data](https://www.whufc.com/fixture/list/713)
+
+
+# Analytical planning
+
+```{mermaid}
+flowchart LR
+  A[Web Scrape] --> B(Preprocess)
+  B --> C[Organize]
+  C --> D(TDM)
+  D --> E[Sentiment Analysis]
+  E --> F[Research Question 1]
+  F --> G{Conclusion}
+  D --> H[DTM]
+  H --> I[Document Similarity]
+  I --> J[Research Question 2]
+  J --> G{Conclusion}
+```
+
+# Web Scraping/Tidying data
+
+Here is the beginning of the web scraping process. I was unable to find a way to make the web scraper search for one object then proceed to the next page where you could then scrape whats inside. For the time being I decided to manually web scrape the information. The tidying process is the real issue as there are many unwanted variables inside. For example there are a lot of /n's.
+
+## Arsenal
+
+This data was scraped from the official Arsenal page. This scraping pulled in all the matches that have been played this season thus far and will continue to grow as the season progresses. Within this scraped data there was a lot that needed to get removed which included things like /n, \n, random number strings, and long sentences talking about buying Arsenal pictures. After using stringr to clean up the data we unlisted it and started moving towards a corpus. There is still some tidying that needs to be done to remove some -'s and to make some spaces at certain portion of the document. After cleaning this data was put into a character vector and then put into a corpus which can be found at the bottom of this code. I added in the name of the team and the match number to the table and after that we can start looking at what the data means. So far 7 matches have been played and the word count was kept fairly consistent until match 5
+
+```{r}
+## The function is working at reading in the data however. parts of the cleaning process are failing and I am thinking this is because I am not specifying the create values
+
+# I need to remove punct, capitalization, stopwords like (the, a ',') finish repeating the process to all teams and adjusting the function until it grabs every single problem once this is complete we should be able to tokenize then corpus and work with the data
+
+Web_scrape_function_Arsenal <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".article-body")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_replace_all("[0-9] of [1234567890]To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_replace_all("[1234567890] of 42To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_replace_all("[1234567890] of 29To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_replace_all("[1234567890] of 45To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_replace_all("[1234567890] of 38To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_replace_all("[1234567890] of 32To buy official Arsenal pictures visit Arsenal Pics", "#") %>%
+  str_remove("Play videoWatch Arsenal video online05:24Highlights | Crystal Palace 0-2 Arsenal - bitesize") %>%
+  str_remove("111111111122222222223333333333444") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("#") %>%
+  unlist()
+}
+
+
+Arsenal_url <- "https://www.arsenal.com/fixture/arsenal/2022-Aug-05/crystal-palace-0-2-arsenal-match-report"
+Match_1 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal_url <- "https://www.arsenal.com/fixture/arsenal/2022-Aug-13/arsenal-4-2-leicester-city-match-report"
+Match_2 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+
+Arsenal_url <- "https://www.arsenal.com/premier-league-match-report-bournemouth-odegaard-saliba-jesus"
+Match_3 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal_url <- "https://www.arsenal.com/premier-league-match-report-fulham-odegaard-gabriel"
+Match_4 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal_url <- "https://www.arsenal.com/match-report-aston-villa-premier-league-martinelli-jesus"
+Match_5 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal_url <- "https://www.arsenal.com/fixture/arsenal/2022-Sep-04/manchester-united-3-1-arsenal-match-report"
+Match_6 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal_url <- "https://www.arsenal.com/premier-league-match-report-brentford-saliba-jesus-vieira"
+Match_7 <- Web_scrape_function_Arsenal(Arsenal_url)
+
+Arsenal <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+nchar(Arsenal)
+Arsenal_corpus <- corpus(Arsenal)
+
+
+
+Arsenal_corpus_summary <- summary(Arsenal_corpus)
+docvars(Arsenal_corpus) <- Arsenal_corpus_summary
+# Adding team name
+Arsenal_corpus_summary$Team <- "Arsenal"
+
+
+# create a Match number
+Arsenal_corpus_summary$Match <- as.numeric(str_extract(Arsenal_corpus_summary$Text, "[0-9]+"))
+Arsenal_corpus_summary
+
+# Document feature matrix
+Arsenal_dfm <- dfm(tokens(Arsenal_corpus,
+                          remove_punct = TRUE,
+                          remove_symbols = TRUE) %>%
+                     dfm(tolower = TRUE) %>%
+                     dfm_remove(stopwords('english')))
+
+view(Arsenal_dfm)
+
+topfeatures(Arsenal_dfm, 20)
+
+set.seed(1)
+
+# draw the wordcloud
+textplot_wordcloud(Arsenal_dfm, min_count = 20, random_order = FALSE)
+# comparing the first and last game
+
+Arsenal_small_dfm <- Arsenal_dfm[c(1,7),]
+
+# draw the wordcloud
+textplot_wordcloud(Arsenal_small_dfm, comparison = TRUE, min_count = 5, random_order = FALSE)
+
+
+# Creating a table to show the highest frequncy items and then ranking them
+word_counts <- as.data.frame(sort(colSums(Arsenal_dfm),dec=T))
+colnames(word_counts) <- c("Frequency")
+word_counts$Rank <- c(1:ncol(Arsenal_dfm))
+head(word_counts)
+
+
+# zipf's law is really quite accurate as the data does fall off really quickly
+ggplot(word_counts, mapping = aes(x = Rank, y = Frequency)) + 
+  geom_point() +
+  labs(title = "Zipf's Law", x = "Rank", y = "Frequency") + 
+  theme_bw()
+
+Arsenal_smaller_dfm <- dfm_trim(Arsenal_dfm, min_termfreq = 10)
+
+# trim based on the proportion of documents that the feature appears in; here, 
+# the feature needs to appear in more than 10% of documents (chapters)
+Arsenal_smaller_dfm <- dfm_trim(Arsenal_smaller_dfm, min_docfreq = 0.1, docfreq_type = "prop")
+
+Arsenal_smaller_dfm
+
+textplot_wordcloud(Arsenal_smaller_dfm, min_count = 50,
+                   random_order = FALSE)
+
+
+# Creating the FCM
+
+Arsenal_smaller_dfm <- dfm_trim(Arsenal_dfm, min_termfreq = 20)
+Arsenal_smaller_dfm <- dfm_trim(Arsenal_smaller_dfm, min_docfreq = .3, docfreq_type = "prop")
+
+# create fcm from dfm
+Arsenal_smaller_dfm <- fcm(Arsenal_smaller_dfm)
+
+# check the dimensions (i.e., the number of rows and the number of columnns)
+# of the matrix we created
+dim(Arsenal_smaller_dfm)
+
+# pull the top features
+myFeatures <- names(topfeatures(Arsenal_smaller_dfm, 30))
+
+# retain only those top features as part of our matrix
+Arsenal_smaller_dfm <- fcm_select(Arsenal_smaller_dfm, pattern = myFeatures, selection = "keep")
+
+# check dimensions
+dim(Arsenal_smaller_dfm)
+
+# compute size weight for vertices in network
+size <- log(colSums(Arsenal_smaller_dfm))
+
+# create plot
+textplot_network(Arsenal_smaller_dfm, vertex_size = size / max(size) * 3)
+
+```
+
+## Manchester City
+
+Manchester Cty followed a very similar path as Arsenal as this one also required a lot cleaning with stringr however, it had a few unique moments. For example, I had to clean () which were all over the place in the original data. Other than this portion the cleaning process was the same and this will also needs some additional cleaning. I was able to move this into the corpus as well and we noticed that it had more sentences than Arsenal. However, this could be do to the spacing problem that I mentioned above more studying will need to be done after that change has been made. This team also had a more consistent amount of words and unique words.
+
+```{r}
+
+Web_scrape_function_mancity <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".article-body__article-text")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("#") %>%
+  unlist()
+}
+
+mancity_url <- "https://www.mancity.com/news/mens/west-ham-v-manchester-city-premier-league-match-report-63795480"
+Match_1 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/man-city-bournemouth-premier-league-match-report-63795987"
+Match_2 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/newcastle-v-manchester-city-match-report-63796690"
+Match_3 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/man-city-crystal-palace-match-report-63797204"
+Match_4 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/manchester-city-v-nottingham-forest-match-report-31-august-63797573"
+Match_5 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/aston-villa-manchester-city-premier-league-match-report-63797816"
+Match_6 <- Web_scrape_function_mancity(mancity_url)
+
+mancity_url <- "https://www.mancity.com/news/mens/wolves-manchester-city-away-premier-league-2022-match-report-63799002"
+Match_7 <- Web_scrape_function_mancity(mancity_url)
+
+
+ManCity <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+Mancity_corpus <- corpus(ManCity)
+
+Mancity_corpus_summary <- summary(Mancity_corpus)
+
+# Creating a Team Name 
+Mancity_corpus_summary$Team <- "Manchester City"
+
+# create a Match number
+Mancity_corpus_summary$Match <- as.numeric(str_extract(Mancity_corpus_summary$Text, "[0-9]+"))
+Mancity_corpus_summary
+
+```
+
+## Newcastle united
+
+This is the start of the middle table teams which I am exciting to see how they differ the two top tier teams. This data was scraped from the Newcastle official website and the cleaning process was pretty straight forward on this one as there was nothing unique that needed to be changed. One noticeable difference between this team and the top teams is the amount of words used in match reports as this one is about half of the first two teams. This might be unique to just this team or maybe the lower in the league the team is the less they will write about their performance?
+
+```{r}
+# New Castle United first match against nottingham forest
+# 1 rule for 1 bots crawl delay 5 seconds, scrapable
+
+bow("https://www.nufc.co.uk/matches/first-team/2022-23/newcastle-united-v-nottingham-forest/")
+
+Web_scrape_function_Newcastle <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".article__body")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("\"") %>%
+  str_remove_all("#") %>%
+  unlist()
+}
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/newcastle-united-v-nottingham-forest/"
+Match_1 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/brighton-and-hove-albion-v-newcastle-united/"
+Match_2 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/newcastle-united-v-manchester-city/"
+Match_3 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/wolverhampton-wanderers-v-newcastle-united/"
+Match_4 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/liverpool-v-newcastle-united/"
+Match_5 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/newcastle-united-v-crystal-palace/"
+Match_6 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+Newcastle_url <- "https://www.nufc.co.uk/matches/first-team/2022-23/newcastle-united-v-bournemouth/"
+Match_7 <- Web_scrape_function_Newcastle(Newcastle_url)
+
+NewCastle <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+Newcastle_corpus <- corpus(NewCastle)
+
+Newcastle_corpus_summary <- summary(Newcastle_corpus)
+
+# Creating a team name
+Newcastle_corpus_summary$Team <- "New Castle"
+
+# create a Match number
+Newcastle_corpus_summary$Match <- as.numeric(str_extract(Newcastle_corpus_summary$Text, "[0-9]+"))
+Newcastle_corpus_summary
+
+
+```
+
+## Everton
+
+Was going to use Aston Villa originally however, the web scrapping was not returning the correct information so we switched to Everton which is running much more smoothly. This is the second team on the list of middle-tier teams and their cleaning process was about the same as the last team however, Aston Villa's website was really hard to scrape from. Looking at the corpus information for Everton we notice an increase in words compared to the last team however, there is one match that is significantly higher than the rest. This is match 2 which was against Aston Villa and I am currently unsure why there is such a difference between these amounts.
+
+```{r}
+
+# Everton vs Chelsea
+# 1 rule for 1 bots crawl delay 5 seconds, scrapable
+
+bow("https://www.evertonfc.com/match/74913/everton-chelsea#report")
+
+Web_scrape_function_Everton <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".article__body.mc-report__body.js-article-body")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("\"") %>%
+  str_remove_all("#") %>%
+  unlist()
+}
+
+Everton_url <- "https://www.evertonfc.com/match/74913/everton-chelsea#report"
+Match_1 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <- "https://www.evertonfc.com/match/74922/aston-villa-everton#report"
+Match_2 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <- "https://www.evertonfc.com/match/74933/everton-nottm-forest#report"
+Match_3 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <-"https://www.evertonfc.com/match/74943/brentford-everton#report"
+Match_4 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <- "https://www.evertonfc.com/match/74955/leeds-everton#report"
+Match_5 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <- "https://www.evertonfc.com/match/74965/everton-liverpool#report"
+Match_6 <- Web_scrape_function_Everton(Everton_url)
+
+Everton_url <- "https://www.evertonfc.com/match/74985/everton-west-ham#report"
+Match_7 <- Web_scrape_function_Everton(Everton_url)
+
+
+Everton <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+Everton_corpus <- corpus(Everton)
+
+Everton_corpus_summary <- summary(Everton_corpus)
+
+# Creating a team name
+Everton_corpus_summary$Team <- "Everton"
+
+# create a match indicator
+Everton_corpus_summary$Match <- as.numeric(str_extract(Everton_corpus_summary$Text, "[0-9]+"))
+Everton_corpus_summary
+
+```
+
+## Leicester
+
+This is the start of the bottom tier teams and we start to get a look into teams that are in the relegation zone which means that if they do not start improving their performance they will get moved down to the second league. I am expecting some urgency from this team and I am expecting that each match means a lot more to a team like this where one win can seperate you from staying or getting kicked out of the league. The cleaning process went smoothly with this team but there is deffiently still some work that needs to be done before the real analysis. We noticed that there words used was higher than the two middle teams on average and they had a pretty consistent range.
+
+```{r}
+
+# Leicester against Brentford
+# 1 bot 1 rule scrapable 5 second crawl
+bow("https://www.lcfc.com/news/2729025/city-held-by-bees-in-premier-league-opener/featured")
+
+Web_scrape_function_Leicester <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".col-12")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("\"") %>%
+  str_remove_all("#") %>%
+  str_remove_all("More on this story. . . In Photos -") %>%
+  unlist()
+}
+
+Leicester_url <- "https://www.lcfc.com/news/2729025/city-held-by-bees-in-premier-league-opener/featured"
+Match_1 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2739798/foxes-fall-to-defeat-at-arsenal/featured"
+Match_2 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2751347/saints-take-the-points-on-filbert-way/featured"
+Match_3 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2762326/city-defeated-as-10man-chelsea-win-at-stamford-bridge/featured"
+Match_4 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2774578/man-utd-defeat-for-leicester-on-matchday-five/featured"
+Match_5 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2779658/city-beaten-away-to-brighton/featured"
+Match_6 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester_url <- "https://www.lcfc.com/news/2793845/leicester-lose-to-spurs-in-london/featured"
+Match_7 <- Web_scrape_function_Leicester(Leicester_url)
+
+Leicester <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+Leicester_corpus <- corpus(Leicester)
+
+Leicester_corpus_summary <- summary(Leicester_corpus)
+
+# Creating a team name
+Leicester_corpus_summary$Team <- "Leicester"
+
+# create a match indicator
+Leicester_corpus_summary$Match <- as.numeric(str_extract(Leicester_corpus_summary$Text, "[0-9]+"))
+Leicester_corpus_summary
+
+```
+
+## West Ham United
+
+West Ham was fairly straight forward and I was able to clean this one pretty well. There is still some spacing work that needs to be done but that will come at a later stage. When looking at their information we noticed that they use some of the least amount of words when talking about the matches. They also use some of the least unique words so I am interested to break this one down and see if they are mostly talking about certain players performances.
+
+```{r}
+# West Ham vs Manchester City
+
+Web_scrape_function_WestHam <- function(url,css,data) { # creating function to repeat web scrape 
+  url <- read_html(url) 
+css <- (".m-article__columns")
+data <- url %>% 
+  html_node(css = css) %>%
+  html_text2()
+data <- str_replace_all(data, "\n", "####") %>%
+  str_replace_all("/n", "####") %>%
+  str_remove_all("/n") %>%
+  str_remove_all("\n") %>%
+  str_remove_all(" - ") %>%
+  str_remove_all("\\(") %>%
+  str_remove_all("\\)") %>%
+  str_remove_all("\"") %>%
+  str_remove_all("#") %>%
+  str_remove_all("More on this story. . . In Photos -") %>%
+  unlist()
+}
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6472"
+Match_1 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6464"
+Match_2 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6452"
+Match_3 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6450"
+Match_4 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6436"
+Match_5 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6428"
+Match_6 <- Web_scrape_function_WestHam(WestHam_url)
+
+WestHam_url <- "https://www.whufc.com/fixture/view/6407"
+Match_7 <- Web_scrape_function_WestHam(WestHam_url)
+
+
+Westham <- c(Match_1, Match_2, Match_3, Match_4, Match_5, Match_6, Match_7)
+
+Westham_corpus <- corpus(Westham)
+
+Westham_corpus_summary <- summary(Westham_corpus)
+
+# Creating a team name
+Westham_corpus_summary$Team <- "WestHam"
+
+
+# create a match indicator
+Westham_corpus_summary$Match <- as.numeric(str_extract(Westham_corpus_summary$Text, "[0-9]+"))
+Westham_corpus_summary
+```
+
+## Exploratory Analysis
+
+## Bibliography
+
+-   City, M. (2022). NEWS. Retrieved from Mancity: https://www.mancity.com/news/mens
+
+-   Club, L. F. (2022). First Team. Retrieved from Leicester Football Club: https://www.lcfc.com/matches/reports
+
+-   Club, T. A. (2022). NEWS. Retrieved from Arsenal: https://www.arsenal.com/news?field_article_arsenal_team_value=men&revision_information=&page=1
+
+-   Everton. (2022). Results. Retrieved from Everton: https://www.evertonfc.com/results
+
+-   United, N. (2022). Our Results. Retrieved from Newcastle United: https://www.nufc.co.uk/matches/first-team/#results
+
+-   United, W. H. (2022). Fixtures. Retrieved from West Ham United: https://www.whufc.com/fixture/list/713

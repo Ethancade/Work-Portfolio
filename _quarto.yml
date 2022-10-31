@@ -3,7 +3,7 @@ project:
 
 website:
   title: ""
-  site-url: 
+  site-url: https://github.com/Ethancade/Work-Portfolio
   twitter-card:
     creator: "@UMassDACSS"
     site: "@UMassDACSS"
@@ -12,14 +12,14 @@ website:
     background: "#881c1c"
     logo: images/UMass White Wordmark Horiz.png
     right:
-      - text: "August 2022 Posts"
-        href: https://dacss.github.io/DACSS_601_August2022_v2
-      - text: "Contributors"
+      - text: "My work"
+        href: https://ethancade.github.io/Work-Portfolio/
+      - text: "About me"
         file: about.qmd
       - href: https://umass.edu/sbs/dacss
         text: "DACSS"
       - icon: github
-        href: https://github.com/DACSS/DACSS_601_August2022_v2
+        href: https://github.com/Ethancade
         aria-label: GitHub
 
 execution:
